@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#9F1239">
-  <title>Top 20 Hub</title>
+  <title>Top 10 Hub</title>
   <style>
     :root {
       color-scheme: light;
@@ -151,7 +151,7 @@
 <body>
   <div class="site">
     <header class="hero">
-      <h1 id="site-title">◆ TOP 20 HUB</h1>
+      <h1 id="site-title">◆ TOP 10 HUB</h1>
       <p id="site-tagline"></p>
     </header>
 
@@ -283,7 +283,7 @@
       root.style.setProperty("--border", safeColor(settings["card border"], FALLBACK["card border"]));
       root.style.setProperty("--link", safeColor(settings["link color"], FALLBACK["link color"]));
       root.style.setProperty("--page", safeColor(settings["page background"], FALLBACK["page background"]));
-      const title = settings["website title"] || "TOP 20 HUB";
+      const title = settings["website title"] || "TOP 10 HUB";
       document.getElementById("site-title").textContent = `◆ ${title}`;
       document.title = title;
       document.getElementById("site-tagline").textContent = settings.tagline || "";
