@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#9F1239">
+  <title>Top 20 Hub</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --header: #9f1239;
+      --category: #9f1239;
+      --border: #ff9d00;
+      --link: #0057c8;
+      --page: #f7f7f7;
+      --ink: #242424;
+      --muted: #6b7280;
+      --layout-columns: 2;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .site {
+      width: min(100% - 32px, 1160px);
+      margin: 32px auto;
+      background: #fff;
+      border: 1px solid #dedede;
+    }
+
+    .hero {
+      background: var(--header);
+      color: #fff;
+      text-align: center;
+      border-bottom: 1px solid rgba(0, 0, 0, .12);
+    }
+
+    .hero h1 {
+      margin: 0;
+      padding: 12px 20px 4px;
+      font-size: clamp(1.8rem, 4vw, 2.7rem);
+      line-height: 1.08;
+      font-weight: 750;
+    }
+
+    .hero p {
+      margin: 0;
+      padding: 0 20px 10px;
+      font-size: clamp(.95rem, 2vw, 1.25rem);
+    }
+
+    main { padding: 22px; }
+
+    .status {
+      min-height: 1.2em;
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    .status.error { color: #a11b31; }
+
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(var(--layout-columns), minmax(0, 1fr));
+      gap: 22px 34px;
+    }
+
+    .category { min-width: 0; }
+
+    .category h2 {
+      margin: 0;
+      padding: 7px 10px;
+      background: var(--category);
+      color: #fff;
+      text-align: center;
+      font-size: 1.25rem;
+      line-height: 1.25;
+      font-weight: 700;
+    }
+
+    .items {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .items li {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      align-items: stretch;
+      min-height: 30px;
+      border-bottom: 1px solid #dedede;
+    }
+
+    .items li:last-child { border-bottom: 1px solid var(--border); }
+
+    .number {
+      padding: 5px 8px 5px 4px;
+      border-right: 1px solid #dedede;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .item-link, .item-label {
+      display: block;
+      min-width: 0;
+      padding: 5px 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .item-link { color: var(--link); text-decoration: underline; }
+    .item-link:hover { text-decoration-thickness: 2px; }
+    .item-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+    .empty {
+      grid-column: 1 / -1;
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px solid #dedede;
+    }
+
+    footer {
+      padding: 9px 16px;
+      background: var(--header);
+      color: #fff;
+      text-align: center;
+      font-size: .9rem;
+    }
+
+    @media (max-width: 700px) {
+      .site { width: min(100% - 20px, 560px); margin: 10px auto; }
+      main { padding: 14px; }
+      .categories { grid-template-columns: 1fr; gap: 18px; }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .item-link { transition: color .15s ease; }
+    }
+  </style>
+</head>
+<body>
+  <div class="site">
+    <header class="hero">
+      <h1 id="site-title">◆ TOP 20 HUB</h1>
+      <p id="site-tagline"></p>
+    </header>
+
+    <main>
+      <p class="status" id="status" role="status" aria-live="polite">Loading sheet data…</p>
+      <div class="categories" id="categories"></div>
+    </main>
+
+    <footer id="footer"></footer>
+  </div>
+
+  <script>
+    // The spreadsheet is the source of truth. Keep its sharing set to
+    // "Anyone with the link" / Viewer so this page can read it without a login.
+    const SHEET_ID = "15HlRovWmXCTf6-iQ_0Zu-UJegMJEaLsKjhpZm7uMHpI";
+    const SHEETS = { items: "1860012779", settings: "73443072" };
+    const REFRESH_MS = 60_000;
+    const FALLBACK = {
+      "header": "#9F1239",
+      "category color": "#9F1239",
+      "card border": "#FF9D00",
+      "link color": "#0057C8",
+      "page background": "#F7F7F7",
+      "layout": "Two columns"
+    };
+
+    const statusEl = document.getElementById("status");
+    const categoriesEl = document.getElementById("categories");
+
+    function readSheet(gid) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        let done = false;
+        const finish = (callback, value) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          script.remove();
+          window.google.visualization.Query.setResponse = () => {};
+          callback(value);
+        };
+        const timer = setTimeout(() => finish(reject, new Error("Google Sheet request timed out")), 15000);
+
+        // Database' public Visualization endpoint responds with this JSONP callback.
+        window.google = window.google || {};
+        window.google.visualization = window.google.visualization || {};
+        window.google.visualization.Query = window.google.visualization.Query || {};
+        window.google.visualization.Query.setResponse = response => {
+          if (response?.status === "error") {
+            finish(reject, new Error(response.errors?.[0]?.detailed_message || "Could not read the sheet"));
+          } else {
+            finish(resolve, response?.table || { cols: [], rows: [] });
+          }
+        };
+
+        script.onerror = () => finish(reject, new Error("Database could not be reached"));
+        const params = new URLSearchParams({ tqx: "out:json", gid });
+        script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${params}`;
+        document.head.appendChild(script);
+      });
+    }
+
+    function cellValue(cell) {
+      return cell?.f ?? cell?.v ?? "";
+    }
+
+    function rowsFromTable(table) {
+      return (table.rows || []).map(row => (row.c || []).map(cellValue));
+    }
+
+    function tableHeaders(table, rows) {
+      const labels = (table.cols || []).map(column => String(column.label || column.id || "").trim().toLowerCase());
+      if (labels.some(Boolean)) return labels;
+      return (rows[0] || []).map(value => String(value).trim().toLowerCase());
+    }
+
+    function settingMap(table) {
+      const rows = rowsFromTable(table).filter(row => row.some(value => String(value).trim()));
+      const result = {};
+      const headers = tableHeaders(table, rows);
+      const settingCol = headers.indexOf("setting");
+      const valueCol = headers.indexOf("value");
+      const start = settingCol < 0 || valueCol < 0 ? 1 : 0;
+      const keyCol = settingCol < 0 ? 0 : settingCol;
+      const contentCol = valueCol < 0 ? 1 : valueCol;
+      for (const row of rows.slice(start)) {
+        const key = String(row[keyCol] ?? "").trim().toLowerCase();
+        if (key) result[key] = String(row[contentCol] ?? "").trim();
+      }
+      return result;
+    }
+
+    function itemRecords(table) {
+      const rows = rowsFromTable(table).filter(row => row.some(value => String(value).trim()));
+      if (!rows.length) return [];
+      const headers = tableHeaders(table, rows);
+      const col = name => headers.indexOf(name);
+      const categoryCol = col("category");
+      const orderCol = col("display order");
+      const titleCol = col("link title");
+      const urlCol = col("url");
+      if ([categoryCol, orderCol, titleCol, urlCol].some(index => index < 0)) {
+        throw new Error("Items tab needs Category, Display Order, Link Title, and URL columns.");
+      }
+      return rows.map(row => ({
+        category: String(row[categoryCol] ?? "").trim(),
+        order: Number(row[orderCol]) || 0,
+        title: String(row[titleCol] ?? "").trim(),
+        url: String(row[urlCol] ?? "").trim()
+      })).filter(item => item.category && item.title);
+    }
+
+    function safeColor(value, fallback) {
+      const candidate = String(value || "").trim();
+      return /^#(?:[\da-f]{3}|[\da-f]{6}|[\da-f]{8})$/i.test(candidate) ? candidate : fallback;
+    }
+
+    function safeWebUrl(value) {
+      try {
+        const url = new URL(value);
+        return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+      } catch { return ""; }
+    }
+
+    function applySettings(settings) {
+      const root = document.documentElement;
+      root.style.setProperty("--header", safeColor(settings.header, FALLBACK.header));
+      root.style.setProperty("--category", safeColor(settings["category color"], FALLBACK["category color"]));
+      root.style.setProperty("--border", safeColor(settings["card border"], FALLBACK["card border"]));
+      root.style.setProperty("--link", safeColor(settings["link color"], FALLBACK["link color"]));
+      root.style.setProperty("--page", safeColor(settings["page background"], FALLBACK["page background"]));
+      const title = settings["website title"] || "TOP 20 HUB";
+      document.getElementById("site-title").textContent = `◆ ${title}`;
+      document.title = title;
+      document.getElementById("site-tagline").textContent = settings.tagline || "";
+      root.style.setProperty("--layout-columns", /one|single/i.test(settings.layout || "") ? "1" : "2");
+    }
+
+    function renderItems(items) {
+      const groups = new Map();
+      for (const item of items) {
+        if (!groups.has(item.category)) groups.set(item.category, []);
+        groups.get(item.category).push(item);
+      }
+
+      categoriesEl.replaceChildren();
+      if (!groups.size) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "No items are listed in the sheet yet.";
+        categoriesEl.append(empty);
+        return;
+      }
+
+      for (const [category, entries] of groups) {
+        entries.sort((a, b) => a.order - b.order);
+        const section = document.createElement("section");
+        section.className = "category";
+        const heading = document.createElement("h2");
+        heading.textContent = category;
+        const list = document.createElement("ol");
+        list.className = "items";
+
+        for (const item of entries) {
+          const row = document.createElement("li");
+          const number = document.createElement("span");
+          number.className = "number";
+          number.textContent = String(item.order || "");
+          const href = safeWebUrl(item.url);
+          const label = document.createElement(href ? "a" : "span");
+          label.className = href ? "item-link" : "item-label";
+          label.textContent = item.title;
+          if (href) {
+            label.href = href;
+            label.target = "_blank";
+            label.rel = "noopener noreferrer";
+          }
+          row.append(number, label);
+          list.append(row);
+        }
+        section.append(heading, list);
+        categoriesEl.append(section);
+      }
+    }
+
+    async function refresh() {
+      statusEl.classList.remove("error");
+      statusEl.textContent = "Updating from Database…";
+      try {
+        const settingsTable = await readSheet(SHEETS.settings);
+        const itemsTable = await readSheet(SHEETS.items);
+        applySettings({ ...FALLBACK, ...settingMap(settingsTable) });
+        renderItems(itemRecords(itemsTable));
+        statusEl.textContent = `Updated ${new Date().toLocaleTimeString()}`;
+        document.getElementById("footer").textContent = `© ${new Date().getFullYear()}`;
+      } catch (error) {
+        statusEl.classList.add("error");
+        statusEl.textContent = `Could not load the sheet. Check that link access is set to Anyone with the link (Viewer). ${error.message}`;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  </script>
+</body>
+</html>
