@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://priyadarshi4n.github.io/Top10-Hub/sitemap.xml
