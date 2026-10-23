@@ -297,7 +297,7 @@
       root.style.setProperty("--page", safeColor(settings["page background"], FALLBACK["page background"]));
       const title = settings["website title"] || "TOP 10 HUB";
       document.getElementById("site-title").textContent = `◆ ${title}`;
-      document.title = title;
+      document.title = `${title} | Useful Websites for Study, AI, Design & Jobs`;
       document.getElementById("site-tagline").textContent = settings.tagline || "";
       root.style.setProperty("--layout-columns", /one|single/i.test(settings.layout || "") ? "1" : "2");
     }
